@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pdf2obsidiannoia</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1e1e2e; --surface: #313244; --surface2: #181825;
+      --text: #cdd6f4; --sub: #585b70; --blue: #89b4fa;
+      --green: #a6e3a1; --red: #f38ba8; --yellow: #f9e2af; --mauve: #cba6f7;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--surface2); border-bottom: 1px solid var(--surface); }
+    header .title { font-weight: 700; color: var(--blue); font-size: 15px; }
+    header .hint { font-size: 11px; color: var(--sub); }
+    main { flex: 1; display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px; }
+    .left { display: flex; flex-direction: column; gap: 12px; }
+    .drop-zone { border: 2px dashed var(--blue); border-radius: 10px; padding: 32px 20px; text-align: center; cursor: pointer; background: var(--surface2); transition: background .2s; }
+    .drop-zone:hover, .drop-zone.over { background: #2a2a45; }
+    .drop-zone.ready { border-color: var(--green); }
+    .drop-zone .icon { font-size: 28px; margin-bottom: 8px; }
+    .drop-zone .lbl { color: var(--blue); font-weight: 600; }
+    .drop-zone.ready .lbl { color: var(--green); }
+    .drop-zone .hint { font-size: 11px; color: var(--sub); margin-top: 4px; }
+    .panel { background: var(--surface2); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .panel-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--blue); padding-bottom: 6px; border-bottom: 1px solid var(--surface); }
+    .row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    .row select { background: var(--surface); color: var(--text); border: none; border-radius: 5px; padding: 4px 8px; font-size: 12px; }
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .track { position: absolute; inset: 0; background: var(--surface); border-radius: 20px; cursor: pointer; transition: background .2s; }
+    .toggle input:checked + .track { background: var(--green); }
+    .track::after { content: ''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform .2s; }
+    .toggle input:checked + .track::after { transform: translateX(16px); }
+    .vault-wrap { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+    .vault-wrap input { background: var(--surface); color: var(--text); border: none; border-radius: 5px; padding: 6px 8px; font-size: 11px; width: 100%; }
+    .vault-wrap input::placeholder { color: var(--sub); }
+    #convertBtn { background: var(--blue); color: var(--bg); border: none; border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; transition: opacity .2s; }
+    #convertBtn:disabled { opacity: .4; cursor: not-allowed; }
+    #convertBtn:hover:not(:disabled) { opacity: .85; }
+    .progress { height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; display: none; }
+    .progress.on { display: block; }
+    .progress-fill { height: 100%; background: var(--blue); animation: slide 1.5s infinite; width: 60%; }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(270%); } }
+    .alert { padding: 8px 12px; border-radius: 6px; font-size: 12px; display: none; }
+    .alert.err { background: #3d1a1f; color: var(--red); display: block; }
+    .alert.warn { background: #3d2e1a; color: var(--yellow); display: block; }
+    .right { display: flex; flex-direction: column; gap: 10px; background: var(--surface2); border-radius: 10px; padding: 14px; }
+    .prev-header { display: flex; align-items: center; justify-content: space-between; }
+    .prev-header .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--blue); }
+    .vtoggle { display: flex; gap: 4px; }
+    .vtoggle button { background: var(--surface); color: var(--sub); border: none; border-radius: 5px; padding: 3px 10px; font-size: 11px; cursor: pointer; }
+    .vtoggle button.on { background: var(--blue); color: var(--bg); }
+    #preview { flex: 1; background: var(--surface2); border: 1px solid var(--surface); border-radius: 6px; padding: 12px; overflow: auto; min-height: 300px; font-family: monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
+    #preview.rendered { font-family: system-ui; white-space: normal; }
+    #preview.empty { display: flex; align-items: center; justify-content: center; color: var(--sub); font-style: italic; }
+    .stats-bar { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--sub); min-height: 28px; }
+    #dlBtn { background: var(--green); color: var(--bg); border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+<header>
+  <span class="title">📄 pdf2obsidiannoia</span>
+  <span class="hint">sans IA · Obsidian MD · v1.0</span>
+</header>
+<main>
+  <div class="left">
+    <div class="drop-zone" id="dz">
+      <div class="icon">📂</div>
+      <div class="lbl" id="dzLbl">Glisser un PDF ici</div>
+      <div class="hint">ou cliquer pour choisir</div>
+      <input type="file" id="fi" accept=".pdf" hidden />
+    </div>
+    <div class="panel">
+      <div class="panel-title">Options</div>
+      <div class="row">
+        <label>Langue</label>
+        <select id="lang"><option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option></select>
+      </div>
+      <div class="row">
+        <label>Wikilinks [[…]]</label>
+        <label class="toggle"><input type="checkbox" id="wiki" checked /><span class="track"></span></label>
+      </div>
+      <div class="row">
+        <label>Callouts [!TYPE]</label>
+        <label class="toggle"><input type="checkbox" id="calls" checked /><span class="track"></span></label>
+      </div>
+      <div class="row">
+        <label>Table des matières</label>
+        <label class="toggle"><input type="checkbox" id="toc" checked /><span class="track"></span></label>
+      </div>
+      <div class="vault-wrap">
+        <label>Vault Obsidian <span style="color:var(--sub)">(optionnel)</span></label>
+        <input type="text" id="vault" placeholder="~/Documents/Obsidian/MyVault" />
+      </div>
+    </div>
+    <div class="progress" id="prog"><div class="progress-fill"></div></div>
+    <button id="convertBtn" disabled>▶ Convertir en Obsidian MD</button>
+    <div class="alert" id="alert"></div>
+  </div>
+  <div class="right">
+    <div class="prev-header">
+      <span class="lbl">Aperçu</span>
+      <div class="vtoggle">
+        <button id="bRaw" class="on" onclick="setView('raw')">Brut</button>
+        <button id="bRend" onclick="setView('rendered')">Rendu</button>
+      </div>
+    </div>
+    <div id="preview" class="empty">En attente d'un PDF…</div>
+    <div class="stats-bar">
+      <span id="stats"></span>
+      <button id="dlBtn" style="display:none" onclick="dl()">⬇ Télécharger .md</button>
+    </div>
+  </div>
+</main>
+<script>
+  let file = null, md = '', fname = '', view = 'raw';
+  const dz = document.getElementById('dz');
+  const fi = document.getElementById('fi');
+  const btn = document.getElementById('convertBtn');
+  const prev = document.getElementById('preview');
+  const statsEl = document.getElementById('stats');
+  const dlBtn = document.getElementById('dlBtn');
+  const alertEl = document.getElementById('alert');
+  const prog = document.getElementById('prog');
+
+  dz.addEventListener('click', () => fi.click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); pick(e.dataTransfer.files[0]); });
+  fi.addEventListener('change', () => pick(fi.files[0]));
+
+  function pick(f) {
+    if (!f || !f.name.endsWith('.pdf')) return;
+    file = f;
+    document.getElementById('dzLbl').textContent = f.name;
+    dz.classList.add('ready');
+    btn.disabled = false;
+    clearAlert();
+  }
+
+  function clearAlert() { alertEl.className = 'alert'; alertEl.textContent = ''; }
+  function showAlert(msg, type = 'err') { alertEl.className = `alert ${type}`; alertEl.textContent = msg; }
+
+  function setView(v) {
+    view = v;
+    document.getElementById('bRaw').classList.toggle('on', v === 'raw');
+    document.getElementById('bRend').classList.toggle('on', v === 'rendered');
+    render();
+  }
+
+  function render() {
+    if (!md) return;
+    prev.classList.remove('empty');
+    if (view === 'raw') {
+      prev.classList.remove('rendered');
+      prev.textContent = md;
+    } else {
+      prev.classList.add('rendered');
+      prev.innerHTML = toHtml(md);
+    }
+  }
+
+  function toHtml(s) {
+    const esc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return esc.split('\n').map(l => {
+      if (l.startsWith('# ')) return `<h1>${l.slice(2)}</h1>`;
+      if (l.startsWith('## ')) return `<h2>${l.slice(3)}</h2>`;
+      if (l.startsWith('### ')) return `<h3>${l.slice(4)}</h3>`;
+      const cm = l.match(/^&gt; \[!(\w+)\] (.*)$/);
+      if (cm) return `<blockquote style="border-left:3px solid var(--blue);padding-left:8px"><strong>[!${cm[1]}]</strong> ${cm[2]}</blockquote>`;
+      if (l.startsWith('&gt; ')) return `<blockquote style="border-left:3px solid var(--blue);padding-left:8px">${l.slice(5)}</blockquote>`;
+      if (l === '---') return '<hr style="border-color:var(--surface)">';
+      return `<p>${l.replace(/\[\[([^\]]+)\]\]/g,'<span style="color:var(--mauve)">[[<a href="#">$1</a>]]</span>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p>`;
+    }).join('');
+  }
+
+  btn.addEventListener('click', async () => {
+    if (!file) return;
+    clearAlert(); btn.disabled = true; prog.classList.add('on');
+    prev.className = 'empty'; prev.textContent = 'Conversion en cours…';
+    statsEl.textContent = ''; dlBtn.style.display = 'none'; md = '';
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('language', document.getElementById('lang').value);
+    fd.append('enable_wikilinks', document.getElementById('wiki').checked);
+    fd.append('enable_callouts', document.getElementById('calls').checked);
+    fd.append('enable_toc', document.getElementById('toc').checked);
+    fd.append('vault_path', document.getElementById('vault').value);
+
+    try {
+      const r = await fetch('/api/convert', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!r.ok) { showAlert(data.detail || 'Erreur'); return; }
+      md = data.markdown; fname = data.filename;
+      render();
+      const s = data.stats;
+      statsEl.textContent = `${s.pages} pages · ${s.wikilinks} wikilinks · ${s.callouts} callouts · ${s.chars} chars`;
+      dlBtn.style.display = 'inline-block';
+      if (data.warnings?.length) showAlert(data.warnings.join(' | '), 'warn');
+    } catch (e) {
+      showAlert('Erreur réseau : ' + e.message);
+    } finally {
+      btn.disabled = false; prog.classList.remove('on');
+    }
+  });
+
+  function dl() { if (fname) window.location.href = `/api/download/${encodeURIComponent(fname)}`; }
+</script>
+</body>
+</html>
