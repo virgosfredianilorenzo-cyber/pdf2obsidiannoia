@@ -1,0 +1,7 @@
+port: 8001
+output_dir: ./output
+vault_path: null
+language: fr
+wikilinks: true
+callouts: true
+toc: true
