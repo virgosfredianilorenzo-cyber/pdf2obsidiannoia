@@ -198,7 +198,7 @@
       md = data.markdown; fname = data.filename;
       render();
       const s = data.stats;
-      statsEl.textContent = `${s.pages} pages · ${s.wikilinks} wikilinks · ${s.callouts} callouts · ${s.chars} chars`;
+      if (s) statsEl.textContent = `${s.pages} pages · ${s.wikilinks} wikilinks · ${s.callouts} callouts · ${s.chars} chars`;
       dlBtn.style.display = 'inline-block';
       if (data.warnings?.length) showAlert(data.warnings.join(' | '), 'warn');
     } catch (e) {
