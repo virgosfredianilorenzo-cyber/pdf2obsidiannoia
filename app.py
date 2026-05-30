@@ -120,8 +120,12 @@ async def download(filename: str):
     return FileResponse(str(file_path), media_type="text/markdown", filename=file_path.name)
 
 
-if __name__ == "__main__":
+def main():
     import os
     port = int(os.environ.get("PORT", CONFIG.get("port", 8001)))
     logger.info("pdf2obsidiannoia — http://localhost:%d", port)
     uvicorn.run(app, host="127.0.0.1", port=port, reload=False)
+
+
+if __name__ == "__main__":
+    main()
