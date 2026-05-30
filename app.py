@@ -16,10 +16,13 @@ from extractor import extract
 from formatter import save_markdown
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent / "config.yaml"
 with open(CONFIG_PATH, encoding="utf-8") as _f:
     CONFIG = yaml.safe_load(_f)
+
+OUTPUT_DIR = Path(CONFIG.get("output_dir", "./output")).resolve()
 
 app = FastAPI(title="pdf2obsidiannoia", version="1.0.0")
 
@@ -44,7 +47,6 @@ async def convert_pdf(
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Fichier PDF requis")
 
-    output_dir = CONFIG.get("output_dir", "./output")
     vault = vault_path.strip() or CONFIG.get("vault_path") or None
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -64,15 +66,16 @@ async def convert_pdf(
         if is_scanned:
             warnings.append("PDF scanné détecté — contenu texte limité ou absent")
 
+        source_filename = Path(file.filename).name
         md_text = convert(
             pdf_doc,
-            source_filename=file.filename,
+            source_filename=source_filename,
             enable_wikilinks=enable_wikilinks,
             enable_callouts=enable_callouts,
             enable_toc=enable_toc,
         )
 
-        save_info = save_markdown(md_text, title=pdf_doc.title, output_dir=output_dir, vault_path=vault)
+        save_info = save_markdown(md_text, title=pdf_doc.title, output_dir=str(OUTPUT_DIR), vault_path=vault)
         if "vault_warning" in save_info:
             warnings.append(save_info["vault_warning"])
 
@@ -82,7 +85,6 @@ async def convert_pdf(
         return JSONResponse({
             "success": True,
             "filename": save_info["filename"],
-            "output_path": save_info["output_path"],
             "vault_path": save_info.get("vault_path"),
             "markdown": md_text,
             "warnings": warnings,
@@ -99,17 +101,19 @@ async def convert_pdf(
     except HTTPException:
         raise
     except Exception:
-        logging.exception("Erreur conversion")
+        logger.exception("Erreur conversion")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
     finally:
-        Path(tmp_path).unlink(missing_ok=True)
+        if "tmp_path" in locals():
+            Path(tmp_path).unlink(missing_ok=True)
 
 
 @app.get("/api/download/{filename}")
 async def download(filename: str):
-    output_dir = Path(CONFIG.get("output_dir", "./output")).resolve()
-    file_path = (output_dir / filename).resolve()
-    if not str(file_path).startswith(str(output_dir) + "/"):
+    file_path = (OUTPUT_DIR / filename).resolve()
+    try:
+        file_path.is_relative_to(OUTPUT_DIR)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Accès refusé")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Fichier introuvable")
@@ -119,5 +123,5 @@ async def download(filename: str):
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", CONFIG.get("port", 8001)))
-    print(f"\n  pdf2obsidiannoia — http://localhost:{port}\n")
+    logger.info("pdf2obsidiannoia — http://localhost:%d", port)
     uvicorn.run(app, host="127.0.0.1", port=port, reload=False)
