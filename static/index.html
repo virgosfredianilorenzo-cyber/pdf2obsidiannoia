@@ -165,16 +165,31 @@
 
   function toHtml(s) {
     const esc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return esc.split('\n').map(l => {
-      if (l.startsWith('# ')) return `<h1>${l.slice(2)}</h1>`;
-      if (l.startsWith('## ')) return `<h2>${l.slice(3)}</h2>`;
-      if (l.startsWith('### ')) return `<h3>${l.slice(4)}</h3>`;
+    const lines = esc.split('\n');
+    const out = [];
+    let para = [];
+
+    function inline(t) {
+      return t.replace(/\[\[([^\]]+)\]\]/g,'<span style="color:var(--mauve)">[[<a href="#">$1</a>]]</span>')
+              .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    }
+    function flushPara() {
+      if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; }
+    }
+
+    for (const l of lines) {
+      if (l.startsWith('# '))   { flushPara(); out.push(`<h1>${l.slice(2)}</h1>`); continue; }
+      if (l.startsWith('## '))  { flushPara(); out.push(`<h2>${l.slice(3)}</h2>`); continue; }
+      if (l.startsWith('### ')) { flushPara(); out.push(`<h3>${l.slice(4)}</h3>`); continue; }
       const cm = l.match(/^&gt; \[!(\w+)\] (.*)$/);
-      if (cm) return `<blockquote style="border-left:3px solid var(--blue);padding-left:8px"><strong>[!${cm[1]}]</strong> ${cm[2]}</blockquote>`;
-      if (l.startsWith('&gt; ')) return `<blockquote style="border-left:3px solid var(--blue);padding-left:8px">${l.slice(5)}</blockquote>`;
-      if (l === '---') return '<hr style="border-color:var(--surface)">';
-      return `<p>${l.replace(/\[\[([^\]]+)\]\]/g,'<span style="color:var(--mauve)">[[<a href="#">$1</a>]]</span>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p>`;
-    }).join('');
+      if (cm) { flushPara(); out.push(`<blockquote style="border-left:3px solid var(--blue);padding-left:8px"><strong>[!${cm[1]}]</strong> ${cm[2]}</blockquote>`); continue; }
+      if (l.startsWith('&gt; ')) { flushPara(); out.push(`<blockquote style="border-left:3px solid var(--blue);padding-left:8px">${l.slice(5)}</blockquote>`); continue; }
+      if (l === '---') { flushPara(); out.push('<hr style="border-color:var(--surface)">'); continue; }
+      if (l.trim() === '') { flushPara(); continue; }
+      para.push(l);
+    }
+    flushPara();
+    return out.join('');
   }
 
   btn.addEventListener('click', async () => {
