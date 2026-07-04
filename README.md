@@ -22,12 +22,125 @@ Application web locale qui convertit des PDF en Markdown formatté selon les con
 
 ## Prérequis
 
-- Linux
-- Python 3.11+
+- Linux (Ubuntu, Debian, Fedora…)
+- Python 3.11 ou supérieur
+
+Pour vérifier ta version de Python, ouvre un terminal et tape :
+
+```bash
+python3 --version
+```
+
+Si tu vois `Python 3.11.x` ou plus, tu es prêt. Sinon, installe Python depuis [python.org](https://www.python.org/downloads/).
 
 ---
 
 ## Installation
+
+### Option A — Démarrage automatique (recommandé pour les débutants)
+
+Le script `start.sh` fait tout automatiquement : il crée l'environnement virtuel, installe les dépendances, et lance l'application.
+
+**1. Télécharge le projet**
+
+```bash
+git clone https://github.com/virgosfredianilorenzo-cyber/pdf2obsidiannoia.git
+```
+
+> Si tu n'as pas `git`, installe-le avec : `sudo apt install git` (Ubuntu/Debian) ou `sudo dnf install git` (Fedora).
+
+**2. Entre dans le dossier du projet**
+
+```bash
+cd pdf2obsidiannoia
+```
+
+**3. Lance le script de démarrage**
+
+```bash
+bash start.sh
+```
+
+C'est tout. L'application démarre sur **http://localhost:8001**.
+
+> La première fois, le script installe les dépendances — cela peut prendre une minute.  
+> Les fois suivantes, il démarre directement.
+
+---
+
+### Option B — Installation manuelle avec environnement virtuel
+
+Cette méthode te donne plus de contrôle. Un **environnement virtuel** (ou *venv*) est un dossier isolé qui contient les bibliothèques Python du projet, sans polluer ton système.
+
+**1. Télécharge le projet**
+
+```bash
+git clone https://github.com/virgosfredianilorenzo-cyber/pdf2obsidiannoia.git
+cd pdf2obsidiannoia
+```
+
+**2. Crée l'environnement virtuel**
+
+```bash
+python3 -m venv .venv
+```
+
+> Cela crée un dossier `.venv/` dans le projet. Tu ne le modifies jamais à la main.
+
+**3. Active l'environnement virtuel**
+
+```bash
+source .venv/bin/activate
+```
+
+> Ton terminal affiche maintenant `(.venv)` au début de la ligne de commande — c'est le signe que l'environnement est actif.  
+> Exemple : `(.venv) utilisateur@machine:~/pdf2obsidiannoia$`
+
+**4. Mets à jour pip (optionnel mais conseillé)**
+
+```bash
+pip install --upgrade pip
+```
+
+**5. Installe les dépendances**
+
+```bash
+pip install -r requirements.txt
+```
+
+> Toutes les bibliothèques nécessaires sont listées dans `requirements.txt`. Pip les télécharge et les installe dans le `.venv/`.
+
+**6. Lance l'application**
+
+```bash
+python app.py
+```
+
+L'application démarre sur **http://localhost:8001**.
+
+**7. Quitter l'environnement virtuel**
+
+Quand tu as fini, tu peux désactiver l'environnement virtuel avec :
+
+```bash
+deactivate
+```
+
+> Ton terminal revient à la normale (plus de `(.venv)` en début de ligne).
+
+**La prochaine fois**, il suffit de réactiver le venv avant de lancer :
+
+```bash
+cd pdf2obsidiannoia
+source .venv/bin/activate
+python app.py
+```
+
+---
+
+### Option C — Installer comme commande système (`pip install .`)
+
+Cette méthode rend la commande `pdf2obsidiannoia` disponible partout dans ton terminal.
 
 ```bash
 git clone https://github.com/virgosfredianilorenzo-cyber/pdf2obsidiannoia.git
@@ -35,43 +148,30 @@ cd pdf2obsidiannoia
 pip install .
 ```
 
-Ou sans installer le package :
-
-```bash
-git clone https://github.com/virgosfredianilorenzo-cyber/pdf2obsidiannoia.git
-cd pdf2obsidiannoia
-bash start.sh
-```
-
----
-
-## Utilisation
-
-### Via le script de démarrage
-
-```bash
-bash start.sh
-```
-
-### Via la commande CLI (après `pip install .`)
+Puis lance simplement :
 
 ```bash
 pdf2obsidiannoia
 ```
 
-L'application démarre sur **http://localhost:8001**.
+> **Note :** Sur certains systèmes, il faut utiliser un venv même pour `pip install .` (voir Option B, étapes 1 à 3, puis `pip install .`).
 
-1. Glisser un PDF dans la zone de dépôt (ou cliquer pour choisir)
-2. Configurer les options (langue, toggles, vault path)
-3. Cliquer **Convertir en Obsidian MD**
-4. Prévisualiser en mode brut ou rendu
-5. Télécharger le `.md` ou le retrouver dans `./output/`
+---
+
+## Utilisation
+
+1. Ouvre **http://localhost:8001** dans ton navigateur
+2. Glisse un PDF dans la zone de dépôt (ou clique pour choisir)
+3. Configure les options (langue, toggles, vault path)
+4. Clique **Convertir en Obsidian MD**
+5. Prévisualise en mode brut ou rendu
+6. Télécharge le `.md` ou retrouve-le dans `./output/`
 
 ---
 
 ## Configuration
 
-Éditer `config.yaml` pour changer les valeurs par défaut :
+Édite `config.yaml` pour changer les valeurs par défaut :
 
 ```yaml
 port: 8001
